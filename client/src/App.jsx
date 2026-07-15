@@ -293,8 +293,8 @@ export default function App() {
             <HeartPulse size={26} />
           </div>
           <div>
-            <strong>CarePulse Pro</strong>
-            <small>Enterprise Hospital OS</small>
+            <strong>TINT Care+</strong>
+            <small>made by Anindya</small>
           </div>
         </div>
 
