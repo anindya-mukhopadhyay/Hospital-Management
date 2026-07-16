@@ -357,8 +357,8 @@ app.delete(
   })
 );
 
-app.listen(port, "127.0.0.1", () => {
-  console.log(`Hospital API running at http://127.0.0.1:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Hospital API running at http://0.0.0.0:${port}`);
   console.log("Using Supabase PostgreSQL through Prisma.");
 });
 
