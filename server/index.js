@@ -81,6 +81,14 @@ async function dbBootstrap() {
   };
 }
 
+app.get("/", (_req, res) => {
+  res.json({
+    message: "TINT Care+ Hospital API is active and online.",
+    status: "healthy",
+    database: "Connected to Supabase PostgreSQL"
+  });
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
