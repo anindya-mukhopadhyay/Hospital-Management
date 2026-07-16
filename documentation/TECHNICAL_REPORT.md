@@ -1,10 +1,10 @@
-# 📝 DBMS Project Technical Report: TINT Care+ Hospital OS
+# 📔 DBMS Project Technical Report: TINT Care+ Hospital OS
 *Created by Anindya • Academic DBMS Implementation Project*
 
 ---
 
 ## 1. Executive Summary & Project Introduction
-**TINT Care+ Hospital OS** is an enterprise-grade, full-stack Hospital Management and Electronic Medical Record (EMR) system. The project is designed to solve real-world database management challenges in clinical environments—specifically synchronizing high-concurrency scheduling, atomic billing logs, precise financial precision, and specialist roster audits.
+**TINT Care+ Hospital OS** is an enterprise-grade, full-stack Hospital Management and Electronic Medical Record (EMR) system. The project is designed to solve real-world database management challenges in clinical environments—specifically synchronizing high-concurrency scheduling, atomic billing logs, precise financial calculations, and specialist roster audits.
 
 The application leverages a decoupled Architecture:
 * **Frontend**: React 19 single-page application built on Vite.
@@ -14,93 +14,192 @@ The application leverages a decoupled Architecture:
 
 ---
 
-## 2. Database Schema & Relational Design
-The database is structured to maintain strict relational integrity, utilizing cascading deletion rules, unique constraints, and numeric precision mapping.
-
-### Entity Relationship Model (Relational Definitions)
+## 2. DBMS System Architecture
+The application runs on a three-tier system architecture with centralized state management on the client side, stateless request handling on the API side, and connection pooling on the database side.
 
 ```mermaid
-erDiagram
-    Department ||--o{ Doctor : "employs"
-    Patient ||--o{ Appointment : "schedules"
-    Patient ||--o{ TreatmentRecord : "undergoes"
-    Patient ||--o{ Bill : "invoiced"
-    Doctor ||--o{ Appointment : "conducts"
-    Doctor ||--o{ TreatmentRecord : "prescribes"
-    Appointment ||--o{ TreatmentRecord : "originates"
-    Bill ||--o{ BillItem : "contains"
-    Bill ||--o{ Payment : "settled_by"
-    TreatmentRecord ||--|| BillItem : "bills"
+graph TD
+    subgraph Client Tier [Client Tier - React SPA]
+        Vite[Vite Dev/Prod Server]
+        React[React 19 Components]
+        Theme[CSS Theme Engine - Clinical Light]
+    end
+
+    subgraph Logic Tier [Logic Tier - Express API]
+        API[Express.js App]
+        Prisma[Prisma ORM Client]
+    end
+
+    subgraph Database Tier [Database Tier - Supabase Cloud]
+        Pooler[PgBouncer Connection Pooler - Port 6543]
+        Direct[PostgreSQL Direct Link - Port 5432]
+        DB[(PostgreSQL Database)]
+    end
+
+    React -->|HTTP Requests| API
+    API -->|Query Builder| Prisma
+    Prisma -->|Pooled Connection| Pooler
+    Prisma -->|Direct Migrations| Direct
+    Pooler --> DB
+    Direct --> DB
 ```
-
-### Table Schemas and Attributes
-
-#### A. Patient (`Patient`)
-*Tracks core clinical identities.*
-* **`id`**: `Int` (Auto-incrementing Primary Key)
-* **`fullName`**: `String`
-* **`dateOfBirth`**: `DateTime`
-* **`gender`**: `Enum (MALE, FEMALE, OTHER)`
-* **`bloodGroup`**: `String` (Nullable)
-* **`phone`**: `String`
-* **`address`**: `String` (Nullable)
-* **`emergencyContact`**: `String` (Nullable)
-
-#### B. Doctor (`Doctor`)
-*Tracks the medical specialist directory.*
-* **`id`**: `Int` (Primary Key)
-* **`fullName`**: `String`
-* **`specialization`**: `String`
-* **`phone`**: `String`
-* **`consultationFee`**: `Decimal(10, 2)` (Defaults to 500.00)
-* **`departmentId`**: `Int` (Foreign Key referencing `Department.id`)
-
-#### C. Appointment (`Appointment`)
-*Manages live triage slot booking. Implements a unique constraint to prevent double-booking.*
-* **`id`**: `Int` (Primary Key)
-* **`patientId`**: `Int` (Foreign Key referencing `Patient.id`)
-* **`doctorId`**: `Int` (Foreign Key referencing `Doctor.id`)
-* **`appointmentAt`**: `DateTime`
-* **`status`**: `Enum (SCHEDULED, COMPLETED, CANCELLED)`
-* **`reason`**: `String`
-* **`Unique Constraint`**: `[doctorId, appointmentAt]` *(Ensures a doctor cannot be scheduled for two concurrent slots).*
-
-#### D. Treatment Record & EMR (`TreatmentRecord`)
-*Stores clinical diagnoses and prescriptions.*
-* **`id`**: `Int` (Primary Key)
-* **`patientId`**: `Int` (Foreign Key referencing `Patient.id`)
-* **`doctorId`**: `Int` (Foreign Key referencing `Doctor.id`)
-* **`appointmentId`**: `Int` (Nullable Foreign Key referencing `Appointment.id`)
-* **`treatmentCode`**: `String` (Foreign Key referencing `TreatmentCatalog.code`)
-* **`diagnosis`**: `String`
-* **`prescription`**: `String` (Nullable)
-* **`quantity`**: `Decimal(8, 2)` (Default `1.00`)
-* **`unitCost`**: `Decimal(10, 2)`
-* **`billId`**: `Int` (Nullable Foreign Key referencing `Bill.id`)
-
-#### E. Billing & Invoices (`Bill`)
-*Tracks patient financial logs.*
-* **`id`**: `Int` (Primary Key)
-* **`patientId`**: `Int` (Foreign Key referencing `Patient.id`)
-* **`subtotal`**: `Decimal(10, 2)`
-* **`discountPercent`**: `Decimal(5, 2)` (Defaults to 0.00%)
-* **`taxPercent`**: `Decimal(5, 2)` (Defaults to 0.00% standard clinical tax)
-* **`totalAmount`**: `Decimal(10, 2)`
-* **`amountPaid`**: `Decimal(10, 2)`
-* **`paymentStatus`**: `Enum (UNPAID, PARTIAL, PAID)`
-
-#### F. Payments (`Payment`)
-*Records historical payment transactions.*
-* **`id`**: `Int` (Primary Key)
-* **`billId`**: `Int` (Foreign Key referencing `Bill.id`)
-* **`amount`**: `Decimal(10, 2)`
-* **`paymentMode`**: `Enum (CASH, CARD, UPI, INSURANCE)`
-* **`referenceNo`**: `String` (Nullable)
-* **`paymentDate`**: `DateTime` (Defaults to current timestamp)
 
 ---
 
-## 3. Core Database Mechanics & ACID Transactions
+## 3. Database Schema & ER Diagram (ERD)
+
+The database schema defines nine tables with strict foreign key constraints, unique indices, and enumerations.
+
+### Entity Relationship Diagram (ERD)
+The following relational diagram represents the exact layout of the Supabase PostgreSQL database tables, columns, and cardinality constraints:
+
+```mermaid
+erDiagram
+    Department ||--o{ Doctor : "employs (departmentId)"
+    Patient ||--o{ Appointment : "schedules (patientId)"
+    Patient ||--o{ TreatmentRecord : "undergoes (patientId)"
+    Patient ||--o{ Bill : "invoiced (patientId)"
+    Doctor ||--o{ Appointment : "conducts (doctorId)"
+    Doctor ||--o{ TreatmentRecord : "prescribes (doctorId)"
+    Appointment ||--o{ TreatmentRecord : "originates (appointmentId)"
+    Bill ||--o{ BillItem : "contains (billId)"
+    Bill ||--o{ Payment : "settled_by (billId)"
+    TreatmentRecord ||--|| BillItem : "bills (treatmentId)"
+
+    Department {
+        int4 id PK
+        text name
+    }
+
+    Patient {
+        int4 id PK
+        text fullName
+        timestamp dateOfBirth
+        Gender gender
+        text bloodGroup
+        text phone
+        text address
+        text emergencyContact
+        timestamp createdAt
+    }
+
+    Doctor {
+        int4 id PK
+        int4 departmentId FK
+        text fullName
+        text specialization
+        text phone
+        text email
+        numeric consultationFee
+        bool active
+    }
+
+    TreatmentCatalog {
+        text code PK
+        text description
+        numeric standardCost
+        bool active
+    }
+
+    Appointment {
+        int4 id PK
+        int4 patientId FK
+        int4 doctorId FK
+        timestamp appointmentAt
+        AppointmentStatus status
+        text reason
+        text notes
+        timestamp createdAt
+    }
+
+    TreatmentRecord {
+        int4 id PK
+        int4 patientId FK
+        int4 doctorId FK
+        int4 appointmentId FK
+        text treatmentCode FK
+        text diagnosis
+        text prescription
+        timestamp treatmentDate
+        numeric quantity
+        numeric unitCost
+        int4 billId FK
+    }
+
+    Bill {
+        int4 id PK
+        int4 patientId FK
+        timestamp billDate
+        numeric subtotal
+        numeric discountPercent
+        numeric discountAmount
+        numeric taxPercent
+        numeric taxAmount
+        numeric totalAmount
+        numeric amountPaid
+        PaymentStatus paymentStatus
+        text notes
+    }
+
+    BillItem {
+        int4 id PK
+        int4 billId FK
+        int4 treatmentId FK
+        text description
+        numeric quantity
+        numeric unitCost
+        numeric lineTotal
+    }
+
+    Payment {
+        int4 id PK
+        int4 billId FK
+        numeric amount
+        timestamp paymentDate
+        PaymentMode paymentMode
+        text referenceNo
+    }
+```
+
+---
+
+## 4. System Userflow Diagram
+The clinical workflow maps the patient journey from admission through medical consultation, EMR filing, and financial clearance.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Receptionist as Front Desk / Reception
+    actor Doctor as Attending Specialist
+    actor Cashier as Billing / Cashier
+    participant DB as PostgreSQL Database
+
+    %% Step 1: Patient Intake
+    Receptionist->>DB: 1. Register Patient (intake profile)
+    Receptionist->>DB: 2. Schedule Appointment (adds to active triage queue)
+    DB-->>Receptionist: Appointment set to SCHEDULED
+
+    %% Step 2: Triage & Queues
+    Doctor->>Doctor: Review active queue list
+    Doctor->>DB: 3. Complete Consultation (status -> COMPLETED)
+    Note over Doctor, DB: Triggers activation for EMR checkout
+    DB-->>Doctor: Appointment marked COMPLETED
+
+    %% Step 3: Clinical EMR
+    Doctor->>Doctor: Open Clinical EMR view
+    Doctor->>DB: 4. Record Diagnosis & Generate Invoice (ACID Transaction)
+    Note over Doctor, DB: Automatically logs EMR record, generates Bill + BillItem
+    DB-->>Doctor: Invoice generated in UNPAID status
+
+    %% Step 4: Billing Ledger
+    Cashier->>DB: 5. Fetch unpaid invoices list
+    Cashier->>DB: 6. Record Payment (UPI/Cash/Card)
+    DB-->>Cashier: Bill status -> PAID / PARTIAL
+```
+
+---
+
+## 5. Core Database Mechanics & ACID Transactions
 
 To ensure structural safety, the system implements **ACID (Atomicity, Consistency, Isolation, Durability)** transactions for clinical updates. 
 
@@ -142,7 +241,7 @@ return prisma.$transaction(async (tx) => {
 
 ---
 
-## 4. Key Engineering Fixes Implemented
+## 6. Key Engineering Fixes Implemented
 
 ### A. Strict Currency Precision (Paise Alignment)
 * **Problem**: The frontend UI originally formatted currencies with `maximumFractionDigits: 0`, rounding a `₹2.50` balance up to `₹3.00`. When patients attempted to pay `3.00`, the backend correctly rejected the request because the actual due balance was only `2.50`.
@@ -154,7 +253,7 @@ return prisma.$transaction(async (tx) => {
 
 ---
 
-## 5. Deployment Guide
+## 7. Deployment Summary
 
 ### Backend (Render Web Service)
 * **Build Command**: `npm install && npx prisma generate`
