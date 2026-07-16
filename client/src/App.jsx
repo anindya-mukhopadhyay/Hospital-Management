@@ -80,8 +80,12 @@ const money = new Intl.NumberFormat("en-IN", {
 const shortDate = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 const shortTime = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit" });
 
+const API_BASE = import.meta.env.PROD 
+  ? "https://hospital-management-1q1d.onrender.com" 
+  : "";
+
 async function api(path, options) {
-  const response = await fetch(path, {
+  const response = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...options
   });
